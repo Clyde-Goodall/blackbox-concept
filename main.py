@@ -1,4 +1,5 @@
 from utility.api import alpaca_data
+from utility.actions import delineator
 import os
 import websocket
 import json
@@ -10,12 +11,8 @@ import rel
 
 # socket time
 url = f'{os.environ.get("WSS_BASE_URL")}quotes/price?apikey={os.environ.get("TWELVEDATA_KEY")}'
-
 def on_message(ws, message):
-    print("THIS IS TRIGGERED EVERY TIME WE GET A MESSAGE FROM THE SOCKET")
-    loaded = json.loads(message)
-    if(loaded["price"]):
-        print(loaded["price"])
+    delineator(json.loads(message))
 
 def on_error(ws, error):
     print(error)
@@ -42,3 +39,4 @@ if __name__ == "__main__":
     ws.run_forever(dispatcher=rel, reconnect=5)  # Set dispatcher to automatic reconnection, 5 second reconnect delay if connection closed unexpectedly
     rel.signal(2, rel.abort)  # Keyboard Interrupt
     rel.dispatch()
+
