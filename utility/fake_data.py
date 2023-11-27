@@ -3,6 +3,7 @@ from .status import Status
 trail = []
 money_ceiling = 1000000000
 counterfeit_money = 1000000000
+counterfeit_money -= 36988.1
 bagholder_log = [
     # {
     #   symbol: string
