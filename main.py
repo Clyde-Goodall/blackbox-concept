@@ -12,6 +12,7 @@ import rel
 # socket time
 url = f'{os.environ.get("WSS_BASE_URL")}quotes/price?apikey={os.environ.get("TWELVEDATA_KEY")}'
 def on_message(ws, message):
+    print(message)
     delineator(json.loads(message))
 
 def on_error(ws, error):
