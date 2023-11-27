@@ -2,7 +2,7 @@ import os
 from os.path import join, dirname
 from dotenv import load_dotenv, find_dotenv
 import requests, json
-import alpaca_trade_api as alpaca
+# import alpaca_trade_api as alpaca
 import pandas as pd
 import numpy as np
 # from scipy.signal import argrelextrema
@@ -41,5 +41,5 @@ not just portfolio content
 """
 def alpaca_data():
     print(os.environ.get("ALPACA_KEY"))
-    return alpaca.REST(os.environ.get("ALPACA_KEY"), os.environ.get("ALPACA_SECRET"), os.environ.get("ALPACA_URL")
-)
+    # return alpaca.REST(os.environ.get("ALPACA_KEY"), os.environ.get("ALPACA_SECRET"), os.environ.get("ALPACA_URL")
+

@@ -5,8 +5,8 @@ import json
 import rel
 
 
-api = alpaca_data()
-print(api.list_positions())
+# api = alpaca_data()
+# print(api.list_positions())
 
 # socket time
 url = f'{os.environ.get("WSS_BASE_URL")}quotes/price?apikey={os.environ.get("TWELVEDATA_KEY")}'
