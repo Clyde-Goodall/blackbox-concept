@@ -1,57 +1,5 @@
 from .status import Status
 
-trail = []
-money_ceiling = 1000000000
-counterfeit_money = 1000000000
-counterfeit_money -= 36988.1
-bagholder_log = [
-    # {
-    #   symbol: string
-    #   data: [
-    #   {
-    #       date_purchased
-    #       date_sold
-    #       price
-    #       amount
-    #       held (bool)
-    #   }
-    # ]
-
-    # }
-    {
-        "symbol": "BTC/USD",
-        "data": [
-            {
-                "date_purchased": "",
-                "date_sold": "",
-                "price": 36988.1,
-                "amount": 1,
-                "held": True
-            }
-        ]
-    },
-]
-data = [
-        {
-            "limit": 10,
-            "avg": 0,
-            "low": 0,
-            "high": 0
-        },
-        {
-            "limit": 20,
-            "avg": 0,
-            "low": 0,
-            "high": 0
-        },
-        {
-            "limit": 30,
-            "avg": 0,
-            "low": 0,
-            "high": 0
-        },
-    ]
-
 def logg(message, status="WARNING"):
     color_map = {
         "OK": "\033[92m",
@@ -59,14 +7,18 @@ def logg(message, status="WARNING"):
         "UNSUCCESSFUL": "\033[91m",
         "WARNING": "\033[93m",
     }
-    print(f'{color_map[status]}[*] \033[0m / {message}')
-
-def get_fake():
-    return data
+    print(f'{message}')
 
 # pulls in moving average/high/low tracker and buy/sell conditions to be referenced in the on_message websocket listener
-def fake(input):
-    trail.append(input["price"])
+def fake(incoming, inputs):
+    # destrucrure the inputs a little bit so it's not obnoxious
+    trail = inputs["trail"]
+    data = inputs["moving"]
+    # for tenporary, non-websocket tests. Maybe should be flagged so we don't have to alter.
+    incoming["price"] = (float(incoming["low"]) + float(incoming["high"]) + float(incoming["open"]) + float(incoming["close"]))/4
+    incoming["timestamp"] = incoming["datetime"]
+    incoming["symbol"] = "BTC/USD"
+    trail.append(incoming["price"])
     # update all time range values
     for entry in data:
         if(len(trail) < entry["limit"]):
@@ -85,26 +37,35 @@ def fake(input):
     print(data[2])
 
     for entry in data:
-         market_action_trigger_conditions(input, entry)
+         market_action_trigger_conditions(incoming, inputs, entry)
         # market actions
         
-
-# actually triggers market sales given the conditions are right, using P/L calc
-def market_action_trigger_conditions(input, entry):
-    liquid_temp = counterfeit_money
-    if(round(input["price"]) == round(entry["low"])):
-        p_l = profit_loss_calc(input)
+"""
+Market Action Trigger Conditions:
+    Controller for market actions based on output from P/L Calculators
+    Negative return value points to trigger_buy
+    Positive return value points to trigger_sell
+"""
+def market_action_trigger_conditions(incoming, inputs, entry):
+    liquid_temp = inputs["cash"]
+    if(round(incoming["price"]) >= round(entry["low"]) 
+       and round(incoming["price"]) <= round(entry["high"])):
+        p_l = profit_loss_calc(incoming, inputs)
         logg("WARNING", f'P/L: {p_l}')
+        if(p_l == 0): return
         if(p_l < 0):
-            trigger_buy(input)
+            trigger_buy(incoming, inputs)
         if(p_l > 0):
-            trigger_sell(input)
+            trigger_sell(incoming, inputs)
             
     logg("OK", f'Cash before iteration: {liquid_temp}. Cash after: {liquid_temp}')
 
-# returns whether P/L is positive or negative. 
-def profit_loss_calc(input):
-    found = next((entry for entry in bagholder_log if entry["symbol"] == input["symbol"]), None)
+"""
+P/L Calculator:
+    Returns whether P/L is positive or negative. 
+"""
+def profit_loss_calc(incoming, inputs):
+    found = next((entry for entry in inputs["history"] if entry["symbol"] == incoming["symbol"]), None)
     if(not found): 
         logg("OK", f'Couldn\'t find entry to run P/L on.')
         return
@@ -114,49 +75,57 @@ def profit_loss_calc(input):
         # only counts open positions
         if(order["held"]):
             total_amt += 1
-            total_value += input["price"]
+            total_value += incoming["price"]
+    if(total_amt == 0): return 0
     avg = total_value/total_amt
-    avg += counterfeit_money
+    avg += inputs["cash"]
 
-    return avg - money_ceiling
+    return avg - inputs["max"]
     
 # alpaca portfolio/rebalance actions
-
-def trigger_buy(input, amt=1):
-    found = next((entry for entry in bagholder_log if entry["symbol"] == input["symbol"]), None)
+"""
+Trigger Buy:
+    Explanation of logic should go here
+"""
+def trigger_buy(incoming, inputs, amt=1):
+    found = next((entry for entry in inputs["history"] if entry["symbol"] == incoming["symbol"]), None)
     logg("WARNING", found)
     if(not found): 
-        bagholder_log.append({
-            "symbol": input["symbol"],
+        inputs["hstory"].append({
+            "symbol": incoming["symbol"],
             "data":[]
         })
-        found = bagholder_log[-1]
-        logg("WARNING", f'Added symbol "{input["symbol"]}" to track for market actions')
+        found = inputs["history"][-1]
+        logg("WARNING", f'Added symbol "{incoming["symbol"]}" to track for market actions')
     for i in range(amt):
         found["data"].append({
-            "date_purchased": input["timestamp"],
-            "price": input["price"],
+            "date_purchased": incoming["timestamp"],
+            "price": incoming["price"],
             "amount": amt,
             "held": True
         })
-        equity -= data["price"]
-    logg("OK", f'purchased {amt} shares of {input["symbol"]}')
+        inputs["cash"] -= incoming["price"]
+    logg("OK", f'purchased {amt} shares of {incoming["symbol"]}')
 
     return Status.OK
 
-def trigger_sell(input, amt=1):
-    found = next((entry for entry in bagholder_log if entry["symbol"] == input["symbol"]), None)
+"""
+Trigger Sell:
+    Explanation of logic should go here
+"""
+def trigger_sell(incoming, inputs, amt=1):
+    found = next((entry for entry in inputs["history"] if entry["symbol"] == incoming["symbol"]), None)
     # if it's trying to sell securities we don't own something is fucky wucky
     if(not found): 
-        logg("ERROR", f'Attempted sale for {input["symbol"]}, but the account is currently not holding any ')
+        logg("ERROR", f'Attempted sale for {incoming["symbol"]}, but the account is currently not holding any ')
         return
     if(amt > len(found["data"])): 
             return Status.UNSUCCESSFUL
     for i in range(amt):
         found["data"][i]["held"] = False
-        found["data"][i]["date_sold"] = input["timestamp"]
+        found["data"][i]["date_sold"] = incoming["timestamp"]
 
-        equity += input["price"]
-    logg("OK", f'sold {amt} shares of {input["symbol"]}')
+        inputs["cash"] += incoming["price"]
+    logg("OK", f'sold {amt} shares of {incoming["symbol"]}')
 
     return Status.OK
