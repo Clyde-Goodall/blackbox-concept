@@ -5,8 +5,8 @@ import pytz
 from datetime import datetime
 tz = pytz.timezone('America/New_York')
 
-def delineator(data, inputs):
-    fake(data, inputs)
+def delineator(data, inputs, config):
+    fake(data, inputs, config)
     
     # print (f'{datetime.fromtimestamp(data["timestamp"], tz).isoformat()},{data["price"]}')
 
