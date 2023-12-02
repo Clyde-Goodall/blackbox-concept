@@ -1,4 +1,5 @@
 from utility.api import alpaca_data
+from ascii import startup_banner
 from utility.actions import delineator
 import requests, os, websocket, json, rel
 import seaborn as sns
@@ -61,6 +62,7 @@ class BlackBox:
     # api = alpaca_data()
 
     def  __init__(self, config):
+        startup_banner()
         self.config = config
         # set close, medium, far moving average day ranges
         self.data[0]["limit"], self.data[1]["limit"], self.data[2]["limit"] = config["moving_averages"][0], config["moving_averages"][1], config["moving_averages"][2]

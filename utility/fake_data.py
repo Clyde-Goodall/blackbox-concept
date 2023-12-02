@@ -1,6 +1,6 @@
 import json
 from datetime import datetime
-def logg(status="WARNING", message=""):
+def logg(message, status="WARNING"):
     color_map = {
         "OK": "\033[92m",
         "ERROR": "\033[94m",
@@ -8,7 +8,8 @@ def logg(status="WARNING", message=""):
         "WARNING": "\033[93m",
     }
     date = datetime.today().strftime('%Y-%m-%d %H:%M:%s')
-    print(f'[{date}]{message}')
+    if(not message): message = "Message received from socket."
+    print(f'{color_map[status]}[{date}]\u001b[0m {message}')
 
 # pulls in moving average/high/low tracker and buy/sell conditions to be referenced in the on_message websocket listener
 def fake(incoming, inputs, config):
@@ -33,11 +34,10 @@ def fake(incoming, inputs, config):
             entry["avg"] = sum(trail[(entry["limit"]-1):])/len(trail[(entry["limit"]-1):])
             entry["low"] = min(trail[(entry["limit"]-1):])
             entry["high"] = max(trail[(entry["limit"]-1):])
-    logg( f'Recalculated low/high and Moving avgs.')
+    logg( f'Recalculated low/high and Moving avgs. New P/L: {profit_loss_calc(incoming, inputs)}')
 
     for entry in data:
          market_action_trigger_conditions(incoming, inputs, entry)
-    logg(f'P/L: {profit_loss_calc(incoming, inputs)}')
         
 """
 Market Action Trigger Conditions:
@@ -74,7 +74,7 @@ def profit_loss_calc(incoming, inputs):
     if(incoming["symbol"]):
         found = next((entry for entry in inputs["history"] if entry["symbol"] == incoming["symbol"]), None)
     if(not found): 
-        logg("OK", f'Couldn\'t find entry to run P/L on.')
+        logg(f'Couldn\'t find entry to run P/L on.', status="WARNING")
         return
     total_amt = 0
     total_value = 0
@@ -87,7 +87,7 @@ def profit_loss_calc(incoming, inputs):
     avg = total_value/total_amt
     avg += inputs["cash"]
 
-    return avg - inputs["max"]
+    return round(avg - inputs["max"], 2)
     
 # alpaca portfolio/rebalance actions
 """
@@ -117,7 +117,7 @@ def trigger_buy(incoming, inputs, amt=1):
             "held": True
         })
         inputs["cash"] -= incoming["price"]
-    logg("OK", f'purchased {amt} shares of {incoming["symbol"]}')
+    logg(f'purchased {amt} shares of {incoming["symbol"]}', status="OK")
 
 
 """
@@ -136,13 +136,12 @@ def trigger_sell(incoming, inputs, amt=1):
         shares_amt_to_sell = .5
     elif(p_l_percent >= 90):
         shares_amt_to_sell = .8
-    logg(found)
     # multiplies share sales amoutn by how many purchased shares in the given found entry's values
     int_shares_to_sell = int(shares_amt_to_sell * 100 * len(found["data"]))
     if(int_shares_to_sell == 0): return
 
     if(not found): 
-        logg("ERROR", f'Attempted sale for {incoming["symbol"]}, but the account is currently not holding any ')
+        logg(f'Attempted sale for {incoming["symbol"]}, but the account is currently not holding any.', status="ERROR")
         return
     if(amt > len(found["data"])): 
             return "oopsie"
@@ -153,4 +152,4 @@ def trigger_sell(incoming, inputs, amt=1):
         else:
             found["data"][i]["date_sold"] = incoming["timestamp"]
         inputs["cash"] += incoming["price"]
-    logg("OK", f'sold {int_shares_to_sell} shares of {incoming["symbol"]}')
+    logg(f'sold {int_shares_to_sell} shares of {incoming["symbol"]}', status="OK")
